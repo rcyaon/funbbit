@@ -1,0 +1,72 @@
+"""KMR2x1NGLFS — C&K (Littelfuse) KMR2 micro-miniature SMT tactile switches, no ground pin.
+
+Selector package for the KMR2 series silver-contact, no-ground-pin (NG),
+lead-free silver-plated (LFS) variants. All four variants share the same
+4.2 x 2.2 mm body (4.6 mm over the gullwing leads), 1.9 mm high SMT
+package, footprint, and pinout; they differ only in actuation force (and
+rated operating life). Select by `actuation_force`.
+
+ MPN          | Force        | Travel         | Operating life
+ KMR211NGLFS  | 1.2 N (120g) | 0.20 ± 0.1 mm  | 200,000 cycles
+ KMR221NGLFS  | 2 N (200g)   | 0.25 ± 0.1 mm  | 200,000 cycles
+ KMR231NGLFS  | 3 N (300g)   | 0.25 ± 0.1 mm  | 150,000 cycles
+ KMR241NGLFS  | 4 N (400g)   | 0.30 ± 0.1 mm  | 100,000 cycles
+
+Electrical (silver contacts): SPST normally-open momentary, 32 VDC /
+50 mA / 1 VA max, 1 mA min, contact resistance ≤ 100 mΩ, bounce ≤ 3 ms,
+IP40, -40 °C to +85 °C.
+
+Pinout: the datasheet "Electrical Diagram" (NG version) shows terminals
+1 & 4 internally bonded as one pole and 2 & 3 as the other, with the
+momentary contact between the poles. The symbol stacks the bonded pairs,
+so the public API is just the two poles `P1` and `P2`; all four pads are
+connected through the stacked pins.
+
+Footprint follows the datasheet recommended NG land pattern (5.0 mm outer
+/ 3.2 mm inner span, 0.9 x 1.0 mm pads on a 1.61 mm lead pitch). F.Fab draws
+the 4.2 x 2.2 mm datasheet body; the actuator is simplified to a 2.2 mm circle
+rather than the datasheet's 2.11 mm-wide oval.
+
+3D model: KiCad's `SW_Push_1P1T-SH_NO_CK_KMR2xxG` STEP from kicad-packages3D,
+embedded and aligned to this land pattern with no offset (its lead centres are
+the same +/-2.05, +/-0.8 mm as these pads). It is the G-variant model, but it
+carries only the four corner gullwing leads - no ground tab - so it represents
+the NG part correctly, and it reproduces the 4.6 mm lead span, the 1.9 mm
+actuator height and the ~2.1 x 1.3 mm oval actuator from the datasheet drawing.
+It is 2.8 mm across the width where the datasheet gives 2.2 mm, i.e. 0.3 mm
+oversize per side - conservative for clearance checks, but do not treat it as a
+mechanical master. This replaced a featureless 4.82 x 2.8 x 2.1 mm block model
+that had no actuator and was wrong on both length and height; the distributor
+model could not be re-fetched (provider returns HTTP 500), and every other
+source for this part is login-gated.
+
+Not covered here: G variants (extra ground pin, different footprint),
+gold-contact (KMR2x3...LFG, 10 mA max) and ULC low-current options. Add
+them as separate symbols/packages if needed.
+"""
+
+actuation_force = config(
+    str,
+    default="1.2N",
+    allowed=["1.2N", "2N", "3N", "4N"],
+    help="Actuator operating force.",
+)
+
+P1 = io(Net)
+P2 = io(Net)
+
+_FAMILY = {
+    "1.2N": "KMR211NG LFS",
+    "2N": "KMR221NG LFS",
+    "3N": "KMR231NG LFS",
+    "4N": "KMR241NG LFS",
+}
+
+_mpn = _FAMILY[actuation_force]
+
+Component(
+    name="SW",
+    symbol=Symbol(library="KMR2x1NGLFS.kicad_sym", name=_mpn.replace(" ", "")),
+    part=Part(mpn=_mpn, manufacturer="C&K"),
+    pins={"1": P1, "2": P2},
+)

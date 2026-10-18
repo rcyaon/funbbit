@@ -1,0 +1,77 @@
+"""Display: Sharp LS013B7DH03, 1.28 in 128x128 reflective memory-in-pixel LCD, on a 10-pin 0.5 mm FPC.
+
+The glass module is not a PCB part: it is fitted by hand into J_LCD (Panasonic
+AYF531035, contacts top and bottom) and stuck to the front of the board.
+
+LS013B7DH03 spec LD-26X06A: VDD = VDDA = 2.7 V min / 3.0 V typ / 3.3 V max
+(Table 6-1), 3.6 V abs max (Table 5); fSCLK 1 MHz typ, 1.1 MHz max; EXTCOMIN
+54-65 Hz (Table 6-3-2); C1 = 0.1 uF on DISP, C2/C3 >= 1 uF on VDDA/VDD (Fig. 9-1).
+The board's cell range starts at 2.0 V, below the LCD minimum, so firmware
+must blank the panel (DISP low, EXTCOMIN stopped) once VBAT < 2.7 V.
+"""
+
+load("@stdlib/checks.zen", "Severity", "voltage_within")
+
+FpcConnector = Module("code.diode.computer/lena/registry/components/Panasonic/AYF531035/AYF531035.zen")
+Capacitor = Module("@stdlib/generics/Capacitor.zen")
+Resistor = Module("@stdlib/generics/Resistor.zen")
+TestPoint = Module("@stdlib/generics/TestPoint.zen")
+
+VBAT = io(
+    Power(voltage="2.0V to 3.3V"),
+    checks=voltage_within("2.7V to 3.3V", name="lcd_vdd", severity=Severity("warning")),
+    help="LCD VDD and VDDA.",
+)
+GND = io(Ground)
+LCD_SCLK = io(Net, help="SPI clock, mode 0, <= 1.1 MHz.")
+LCD_MOSI = io(Net, help="SPI data (LCD SI), LSB first.")
+LCD_CS = io(Net, help="Chip select (LCD SCS), active high.")
+LCD_EXTCOMIN = io(Net, help="VCOM inversion clock (54-65 Hz) when EXTMODE is high.")
+LCD_DISP = io(Net, help="Display on (high) / all-white (low); memory is kept.")
+
+VcomMode = enum("EXTCOMIN", "SERIAL")
+
+vcom_mode = config(
+    VcomMode,
+    default="EXTCOMIN",
+    help="EXTCOMIN: EXTMODE tied high, VCOM follows the LCD_EXTCOMIN pin. SERIAL: EXTMODE low, VCOM via the M1 bit.",
+)
+
+LCD_EXTMODE = Net()
+
+# The LCD lies display-up above J_LCD and its FPC (conductors on the back face)
+# runs straight into the slot. Seen from the top, LCD pin 1 is on the right and
+# J_LCD contact 1 is on the left, so contact N meets LCD pin 11 - N.
+FpcConnector(
+    name="J_LCD",
+    P10=LCD_SCLK,  # LCD 1  SCLK
+    P9=LCD_MOSI,  # LCD 2  SI
+    P8=LCD_CS,  # LCD 3  SCS
+    P7=LCD_EXTCOMIN,  # LCD 4  EXTCOMIN
+    P6=LCD_DISP,  # LCD 5  DISP
+    P5=VBAT,  # LCD 6  VDDA
+    P4=VBAT,  # LCD 7  VDD
+    P3=LCD_EXTMODE,  # LCD 8  EXTMODE
+    P2=GND,  # LCD 9  VSS
+    P1=GND,  # LCD 10 VSSA
+    MP=GND,
+)
+
+Capacitor(name="C_LCD_VDDA", value="1uF", package="0603", dielectric="X7R", P1=VBAT, P2=GND)
+Capacitor(name="C_LCD_VDD", value="1uF", package="0603", dielectric="X7R", P1=VBAT, P2=GND)
+Capacitor(name="C_LCD_DISP", value="100nF", package="0603", dielectric="X7R", P1=LCD_DISP, P2=GND)
+
+# Exactly one strap is fitted; fitting both would short VBAT to GND.
+extmode_high = vcom_mode == VcomMode("EXTCOMIN")
+Resistor(name="R_EXTMODE_HI", value="0Ohm", package="0603", P1=LCD_EXTMODE, P2=VBAT, dnp=not extmode_high)
+Resistor(name="R_EXTMODE_LO", value="0Ohm", package="0603", P1=LCD_EXTMODE, P2=GND, dnp=extmode_high)
+
+# Holds the active-high chip select off while MCU pins float in reset. Costs
+# current only while CS is high (during transfers).
+Resistor(name="R_LCD_CS_PD", value="1MOhm", package="0603", P1=LCD_CS, P2=GND)
+
+# Optional blanking while the MCU is held in reset. DNP: when fitted it draws
+# 0.3 uA continuously whenever the display is on.
+Resistor(name="R_LCD_DISP_PD", value="10MOhm", package="0603", P1=LCD_DISP, P2=GND, dnp=True)
+
+TestPoint(name="TP_LCD_EXTCOMIN", variant="Pad_D1.5mm", P1=LCD_EXTCOMIN)

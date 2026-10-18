@@ -1,0 +1,18 @@
+[workspace]
+repository = "code.diode.computer/lena/b/funbit"
+pcb-version = "0.4"
+vendor = ["code.diode.computer/**"]
+
+[board]
+name = "funbit"
+path = "funbit.zen"
+
+[dependencies]
+"code.diode.computer/lena/registry/components/Diodes_Incorporated/DMP2045U-7" = "0.1.0"
+"code.diode.computer/lena/registry/components/Keystone/3034" = "0.1.0"
+"code.diode.computer/lena/registry/components/Littelfuse/KMR2x1NGLFS" = "0.1.1"
+"code.diode.computer/lena/registry/components/Microchip_Technology/MCP6042T-I_MS" = "0.1.0"
+"code.diode.computer/lena/registry/components/Panasonic/AYF531035" = "0.1.0"
+"code.diode.computer/lena/registry/components/STMicroelectronics/STM32U083KCU6" = "0.1.0"
+"code.diode.computer/lena/registry/components/Same_Sky/SJ-3523-SMT" = "0.1.0"
+"code.diode.computer/lena/registry/components/Samtec/FTSH-105-01-L-DV-K-A-P-TR" = "0.1.0"

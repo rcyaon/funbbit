@@ -1,0 +1,52 @@
+"""MCP6042T-I/MS - Microchip dual 600 nA/channel rail-to-rail I/O op amp, MSOP-8.
+
+Primitive package (bare device). MCP6042 is the dual member of the MCP6041/2/3/4
+family (DS20001669E): 14 kHz GBWP, 0.6 uA typ quiescent current per amplifier,
+unity-gain stable, rail-to-rail input (VSS-0.3 V to VDD+0.3 V) and output.
+Supply VDD-VSS = 1.4 V to 6.0 V (Table 1-1 note 1: date codes from Nov 2007 are
+screened to 6.0 V). Industrial grade -I: -40 to +85 C specified.
+T = tape and reel ordering suffix; /MS = 8-lead MSOP (drawing C04-111C).
+
+Pinout (MSOP-8, datasheet p.1): 1 OUTA, 2 VINA-, 3 VINA+, 4 VSS, 5 VINB+,
+6 VINB-, 7 VOUTB, 8 VDD.
+
+Integrator-owned: the local VDD bypass capacitor (datasheet section 4.6:
+0.01 uF to 0.1 uF within 2 mm of VDD; bulk >= 1 uF within 100 mm optional and
+shareable), the feedback/gain network, and any output isolation resistor for
+capacitive loads (section 4.2, Figure 4-4). Tie unused channels as a follower
+to a mid-rail or rail voltage within the common-mode range. With ~pA input
+bias currents, PCB leakage dominates high-impedance nodes; consider guard rings
+(section 4.7).
+
+SPICE: Microchip MCP6041 macro model Rev D (MCP6041_MM_D.zip, covers
+MCP6041/2/3/4) wrapped as a dual subcircuit. It models typical linear-region
+behaviour; set GMIN=100f for high-impedance circuits.
+"""
+
+load("@stdlib/interfaces.zen", "Opamp")
+
+VDD = io(Power(voltage="1.4V to 6.0V"))
+VSS = io(Ground)
+A = io(Opamp)
+B = io(Opamp)
+
+Component(
+    name="MCP6042T-I_MS",
+    symbol=Symbol(library="MCP6042T-I_MS.kicad_sym"),
+    pins={
+        "OUTA": A.OUT,
+        "-INA": A.IN_N,
+        "+INA": A.IN_P,
+        "VSS": VSS,
+        "+INB": B.IN_P,
+        "-INB": B.IN_N,
+        "OUTB": B.OUT,
+        "VDD": VDD,
+    },
+    spice_model=SpiceModel(
+        "MCP6042.lib",
+        "MCP6042",
+        nets=[A.OUT, A.IN_N, A.IN_P, VSS, B.IN_P, B.IN_N, B.OUT, VDD],
+        args={},
+    ),
+)

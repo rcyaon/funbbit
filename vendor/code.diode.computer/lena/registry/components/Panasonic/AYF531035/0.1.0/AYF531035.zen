@@ -1,0 +1,58 @@
+"""Panasonic AYF531035 - 10-contact, 0.5 mm pitch FPC/FFC connector, Y5B series.
+
+Primitive package. Right-angle SMT, 1.00 mm high, 3.20 mm deep (3.70 mm with
+the lever open), back lock, gold-plated contacts. Evidence: Panasonic Y5B/Y5BW
+catalog ACCTB1E 202309 - ordering/product table (p2), specifications (p3),
+Y5B dimensions and FPC dimensions (p4: A = 7.00, B = 6.36, C = 4.50 for 10
+pins), recommended PC board and metal mask patterns (p7).
+
+Series: the MPN AYF531035 is Y5B (function digit 3, "top and bottom double
+contacts"), not Y5BW (AYF5310_65T, adds FPC holding contacts). It has no
+holding contacts, only the two soldering terminals (MP).
+
+Mating side: double top-and-bottom contact construction, so the connector
+mates with an FPC/FFC whose exposed conductors face either up or down. FPC/FFC
+t = 0.30 +/- 0.03 mm, conductor width 0.35 (FPC) / 0.30 (FFC), conductor
+exposure >= 1.50 mm, stiffener >= 2.50 mm, overall width 5.50 mm (A+1).
+Flipping the cable mirrors the contact order, so contact N meets FPC conductor
+N on one face and conductor 11-N on the other; check the cable orientation.
+
+Numbering: the catalog does not number the contacts. This package numbers
+1-10 left to right in the footprint top view with the FPC entering from the
+top edge (-Y): contact 1 is at x = -2.25 mm, marked by the silkscreen
+triangle.
+
+Limits: 0.5 A per contact, 50 V AC/DC, -55 to +85 C, 20 mating cycles. MP
+(the two soldering terminals) is mechanical retention only, not rated as a
+conductor; connect it to GND or leave it on its own copper.
+"""
+
+P1 = io(Net, optional=True)
+P2 = io(Net, optional=True)
+P3 = io(Net, optional=True)
+P4 = io(Net, optional=True)
+P5 = io(Net, optional=True)
+P6 = io(Net, optional=True)
+P7 = io(Net, optional=True)
+P8 = io(Net, optional=True)
+P9 = io(Net, optional=True)
+P10 = io(Net, optional=True)
+MP = io(Net, optional=True)
+
+Component(
+    name="AYF531035",
+    symbol=Symbol(library="AYF531035.kicad_sym"),
+    pins={
+        "1": P1,
+        "2": P2,
+        "3": P3,
+        "4": P4,
+        "5": P5,
+        "6": P6,
+        "7": P7,
+        "8": P8,
+        "9": P9,
+        "10": P10,
+        "MP": MP,
+    },
+)

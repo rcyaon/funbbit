@@ -1,0 +1,64 @@
+"""Envelope detector transient at VBAT = 3.0 V.
+
+Mono 100 Hz tone on both channels: 50 mV rms (0-0.8 s), 300 mV rms
+(0.8-1.6 s), then silence (1.6-2.6 s). Measures AUDIO_VMID, ENV_OUT - AUDIO_VMID
+per segment, and the analog front-end supply current in silence.
+
+The MCP6042 uses Microchip's MCP6041 Rev D macro model, which is valid in the
+linear region only ("modified output impedance at expense of comparator
+operation"), so MUSIC_PRESENT is not judged here. run_envelope_checks.py
+re-runs this netlist with a behavioral comparator in channel B to measure the
+trip points, and extracts attack/release and the 1 V rms top of range.
+"""
+
+load("@stdlib/properties.zen", "Simulation")
+
+AudioSense = Module("../modules/audio_sense.zen")
+
+VBAT = Power(voltage="3.0V")
+GND = Ground()
+AUDIO_L_IN = Net()
+AUDIO_R_IN = Net()
+ENV_OUT = Net()
+MUSIC_PRESENT = Net()
+AUDIO_VMID = Net()
+AUDIO_RAW = Net()
+
+AudioSense(
+    name="DUT",
+    VBAT=VBAT,
+    GND=GND,
+    AUDIO_L_IN=AUDIO_L_IN,
+    AUDIO_R_IN=AUDIO_R_IN,
+    ENV_OUT=ENV_OUT,
+    MUSIC_PRESENT=MUSIC_PRESENT,
+    AUDIO_VMID=AUDIO_VMID,
+    AUDIO_RAW=AUDIO_RAW,
+    test_pads=False,
+)
+
+Simulation(
+    name="test_audio_sense_envelope",
+    setup=f"""
+.options gmin=1e-13 reltol=1e-3 itl1=1000 itl2=500 gminsteps=100 srcsteps=100
+V_BAT {VBAT} {GND} DC 3.0
+* Walkman source ~2 Ohm; 32 Ohm headphone load is irrelevant to the tap.
+B_SRC SRC {GND} V = (time < 0.8 ? 0.07071 : (time < 1.6 ? 0.42426 : 0)) * sin(2*3.14159265*100*time)
+R_SRC_L SRC {AUDIO_L_IN} 2
+R_SRC_R SRC {AUDIO_R_IN} 2
+R_HP_L {AUDIO_L_IN} {GND} 32
+R_HP_R {AUDIO_R_IN} {GND} 32
+
+.control
+  tran 20u 2.6 0 50u
+  let env = v({ENV_OUT}) - v({AUDIO_VMID})
+  meas tran vmid avg v({AUDIO_VMID}) from=0.0 to=0.1
+  meas tran env_50mv avg env from=0.6 to=0.8
+  meas tran env_300mv avg env from=1.4 to=1.6
+  meas tran env_silence find env at=2.6
+  meas tran i_quiescent avg i(V_BAT) from=2.4 to=2.6
+  set wr_singlescale
+  wrdata output/envelope.txt env
+.endc
+""",
+)

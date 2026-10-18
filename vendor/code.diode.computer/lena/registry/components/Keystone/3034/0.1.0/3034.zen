@@ -1,0 +1,39 @@
+"""Keystone 3034TR - SMT ultra-low-profile retainer for one 20 mm coin cell.
+
+Primitive package. Holds 20 mm cells: the catalog row lists BR2016, DL2020,
+CR2025 and CR2032; Keystone's product notes list the 2020/2025/2032 sizes.
+0.25 mm phosphor bronze, nickel plated, 4.06 mm high, 21.21 mm body width,
+23.24 mm across the solder tabs, 16.41 mm deep, -45 to +130 C. Evidence:
+Keystone catalog M65/K75 p11 (Fig. 3, table row 3034) and Keystone drawing
+3034 rev F (2025-01-28), "Mounting pad layout".
+
+Contacts: the retainer is the positive terminal (both solder tabs, pad 1).
+The cell's negative face sits on a bare-copper PCB pad (pad 2): Keystone's
+layout calls for a 3.96 mm (.156 in) square minimum negative contact pad on
+the tab centreline. The footprint uses a 4.0 mm square pad with a solder-mask
+opening and no paste so the contact surface stays flat; specify a
+corrosion-resistant finish (ENIG) for that pad.
+
+Positive tabs: Keystone minimums are 1.27 x 5.08 mm on a 23.24 mm outer span.
+The lands keep the 10.35 mm inner edge and extend 0.50 mm outward and 0.26 mm
+at each end (1.77 x 5.60 mm) for toe and side fillets.
+
+Keep exposed copper, vias and silkscreen under the cell outside pad 2 to a
+minimum; the cell can (+) overhangs the open front of the retainer.
+Ordering: 3034TR is tape and reel; 3034 is the same part in bulk.
+"""
+
+POS = io(Power)
+NEG = io(Ground)
+
+Component(
+    name="3034",
+    symbol=Symbol(library="Keystone_3034.kicad_sym"),
+    properties={
+        "alternatives": [Part(mpn="3034", manufacturer="Keystone Electronics")],
+    },
+    pins={
+        "POS": POS,
+        "NEG": NEG,
+    },
+)

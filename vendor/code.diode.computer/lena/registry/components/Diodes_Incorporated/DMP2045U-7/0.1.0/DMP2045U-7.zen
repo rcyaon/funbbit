@@ -1,0 +1,29 @@
+"""DMP2045U-7 - Diodes Incorporated P-channel enhancement MOSFET, -20 V, SOT-23.
+
+Primitive package (bare device). Diodes' recommended replacement for the NRND
+DMG3415U; same G/S/D pinout and SOT23 land pattern, but not identical
+electrically. Key ratings (DS40478 Rev.4-2): V_DSS -20 V, V_GSS +/-8 V,
+I_D -4.3 A at T_A = 25 C (-3.5 A at 70 C, V_GS -4.5 V), R_DS(on) max
+45 mOhm @ -4.5 V / 58 mOhm @ -2.5 V / 90 mOhm @ -1.8 V, V_GS(th) -0.3 to
+-1.0 V, P_D 0.8 W / R_thJA 154 C/W (min pad), Ciss 634 pF, Qg 6.8 nC @ -4.5 V.
+ESD-protected gate (internal gate protection diode).
+
+Versus DMG3415U: higher R_DS(on) at low gate drive (90 vs 71 mOhm max @ -1.8 V),
+about 2x Ciss (634 vs 294 pF), lower Qg (6.8 vs 9.1 nC), Rg 20 vs 250 Ohm.
+
+Pinout (SOT23 Standard top view, p.1): 1 G, 2 S, 3 D. -7 = 3000-piece tape
+and reel. Automotive variant DMP2045UQ has a separate datasheet.
+
+Integrator-owned: gate pull-up/drive, gate resistor, and any V_GS clamp (keep
+|V_GS| <= 8 V).
+"""
+
+G = io(Net)
+D = io(Net)
+S = io(Net)
+
+Component(
+    name="DMP2045U-7",
+    symbol=Symbol(library="DMP2045U-7.kicad_sym"),
+    pins={"G": G, "S": S, "D": D},
+)

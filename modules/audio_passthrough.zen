@@ -1,0 +1,48 @@
+"""Audio passthrough: fully passive stereo path from the player to the headphones.
+
+Input is a 3.5 mm TRS jack, with alternate wire pads for a captive cable in
+parallel (cable not fitted by default). The sleeve is the common ground for
+both jacks and the board, with no ground lift. Nothing active sits in the path,
+so the headphones work with the cell dead or the MCU held in reset.
+
+Volume: no SMD dual-gang thumbwheel pot exists in the Diode library, so the
+volume feature is dropped and each channel is a 0 Ohm link (straight wire).
+`series_resistance` can fit a small fixed pad (e.g. 10 Ohm) instead.
+"""
+
+load("@stdlib/units.zen", "Resistance")
+
+AudioJack = Module("code.diode.computer/lena/registry/components/Same_Sky/SJ-3523-SMT/SJ-3523-SMT.zen")
+Resistor = Module("@stdlib/generics/Resistor.zen")
+TestPoint = Module("@stdlib/generics/TestPoint.zen")
+
+AUDIO_L_IN = io(Net, help="Left channel from the player (input jack tip).")
+AUDIO_R_IN = io(Net, help="Right channel from the player (input jack ring).")
+AUDIO_L_OUT = io(Net, help="Left channel to the headphones (output jack tip).")
+AUDIO_R_OUT = io(Net, help="Right channel to the headphones (output jack ring).")
+GND = io(Ground, help="Common audio/system ground (both sleeves).")
+
+series_resistance = config(
+    Resistance,
+    default="0Ohm",
+    help="In-line resistor per channel in place of the dropped volume pot; 0 Ohm is a straight wire.",
+)
+
+AudioJack(name="J_AUDIO_IN", TIP=AUDIO_L_IN, RING=AUDIO_R_IN, SLEEVE=GND)
+
+# Captive-cable alternative (original PET-F7 style): wire pads beside the
+# strain-relief slot. Copper only, nothing is fitted by default.
+TestPoint(name="CABLE_L", variant="THTPad_2.0x2.0mm_Drill1.0mm", P1=AUDIO_L_IN)
+TestPoint(name="CABLE_R", variant="THTPad_2.0x2.0mm_Drill1.0mm", P1=AUDIO_R_IN)
+TestPoint(name="CABLE_GND", variant="THTPad_2.0x2.0mm_Drill1.0mm", P1=GND)
+
+# Optional bleeds (DNP): define the input lines when nothing is plugged in, so a
+# dangling cable cannot couple enough hum into the 100 kOhm taps to trip
+# MUSIC_PRESENT. 10 kOhm is a negligible load next to 16-300 Ohm headphones.
+Resistor(name="R_BLEED_L", value="10kOhm", package="0603", P1=AUDIO_L_IN, P2=GND, dnp=True)
+Resistor(name="R_BLEED_R", value="10kOhm", package="0603", P1=AUDIO_R_IN, P2=GND, dnp=True)
+
+Resistor(name="R_LINK_L", value=series_resistance, package="0603", P1=AUDIO_L_IN, P2=AUDIO_L_OUT)
+Resistor(name="R_LINK_R", value=series_resistance, package="0603", P1=AUDIO_R_IN, P2=AUDIO_R_OUT)
+
+AudioJack(name="J_AUDIO_OUT", TIP=AUDIO_L_OUT, RING=AUDIO_R_OUT, SLEEVE=GND)

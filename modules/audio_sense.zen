@@ -1,0 +1,202 @@
+"""Audio sense: non-loading stereo tap, analog envelope detector, music-present comparator.
+
+Option A (default, populated):
+  L and R each feed a >= 100 kOhm tap resistor into one summing node, AC-coupled
+  into the virtual ground of an inverting precision half-wave rectifier (U_AFE
+  channel A, biased at AUDIO_VMID). The rectifier output charges C_ENV through
+  R_ATT (attack) and discharges through R_ATT + R_FB into the virtual ground
+  (release), so no extra discharge resistor loads AUDIO_VMID:
+      tau_attack  = R_ATT * C_ENV            (RC: 2.7k * 2.2u = 5.9 ms)
+      tau_release = (R_ATT + R_FB) * C_ENV   (RC: 64.7k * 2.2u = 142 ms)
+      gain (mono) = R_FB / (tap_resistance / 2) = 1.24
+  The rectifier only charges C_ENV near each half-cycle peak, so the measured
+  63% step response of ENV_OUT is ~4x the attack RC: ~23 ms for 60-500 Hz
+  bass, with ~147 ms release (ngspice, MCP6041 macro model, testbench/).
+  ENV is referenced to AUDIO_VMID and reaches ENV_OUT (ADC) through an RC
+  anti-alias filter. Channel B compares ENV with MUSIC_THRESH (a tap on the
+  AUDIO_VMID bias ladder) with positive-feedback hysteresis and drives
+  MUSIC_PRESENT high while music plays.
+
+Option B (DNP footprints): a separate pair of tap resistors, AC-coupled to
+AUDIO_RAW biased at AUDIO_VMID, with an RC anti-alias pole for direct ~8 kHz
+ADC sampling. `sense_mode` selects which option is fitted; topology is fixed.
+"""
+
+load("@stdlib/interfaces.zen", "Opamp")
+load("@stdlib/units.zen", "Capacitance", "Frequency", "PI", "Resistance", "Time", "Voltage")
+load("@stdlib/utils.zen", "e12", "e24")
+
+OpAmp = Module("code.diode.computer/lena/registry/components/Microchip_Technology/MCP6042T-I_MS/MCP6042T-I_MS.zen")
+Rectifier = Module("@stdlib/generics/Rectifier.zen")
+Resistor = Module("@stdlib/generics/Resistor.zen")
+Capacitor = Module("@stdlib/generics/Capacitor.zen")
+TestPoint = Module("@stdlib/generics/TestPoint.zen")
+
+VBAT = io(Power(voltage="2.0V to 3.3V"))
+GND = io(Ground)
+AUDIO_L_IN = io(Net, help="Left channel (tapped, not loaded).")
+AUDIO_R_IN = io(Net, help="Right channel (tapped, not loaded).")
+ENV_OUT = io(Net, help="Envelope after the anti-alias RC, to an MCU ADC pin.")
+MUSIC_PRESENT = io(Net, help="Comparator output, high while music plays; to a wake-capable MCU pin.")
+AUDIO_VMID = io(Net, help="Mid-rail bias (~0.495 x VBAT), to an MCU ADC pin for offset tracking.")
+AUDIO_RAW = io(Net, help="Option B direct-sampling node, to an MCU ADC pin.")
+
+SenseMode = enum("ENVELOPE", "DIRECT_ADC", "BOTH")
+
+sense_mode = config(SenseMode, default="ENVELOPE", help="Which sensing option is populated.")
+tap_resistance = config(Resistance, default="100kOhm", help="Tap resistor from each channel into the summing node.")
+coupling_corner = config(Frequency, default="15Hz", help="High-pass corner of the tap coupling capacitor (mono drive).")
+attack_time = config(Time, default="6ms", help="Attack RC time constant (measured step response is ~4x longer).")
+release_time = config(Time, default="150ms", help="Release RC time constant.")
+envelope_capacitance = config(Capacitance, default="2.2uF", help="Envelope hold capacitor C_ENV.")
+adc_filter_corner = config(
+    Frequency, default="48Hz", help="Anti-alias RC corner in front of the ADC pin (below Nyquist at 100 Hz sampling)."
+)
+music_threshold = config(Voltage, default="26mV", help="Comparator threshold above AUDIO_VMID at VBAT = 3.0 V.")
+hysteresis = config(Voltage, default="13.5mV", help="Comparator hysteresis referred to ENV at VBAT = 3.0 V.")
+test_pads = config(bool, default=True, help="Fit the probe pads; testbenches set False (pads have no SPICE model).")
+
+VBAT_NOMINAL = Voltage("3.0V")
+BIAS_LEG = Resistance("2.2MOhm")  # 0.68 uA ladder at 3.0 V
+HYS_INPUT = Resistance("100kOhm")
+ADC_FILTER_CAP = Capacitance("100nF")
+
+check(tap_resistance >= Resistance("100kOhm"), "tap_resistance must be >= 100 kOhm so the tap does not load the audio")
+check(release_time > attack_time, "release_time must be longer than attack_time")
+
+
+def attack_resistor(t_attack, c_env):
+    """tau_attack = R_ATT * C_ENV (rectifier output is a low-impedance source while it conducts)."""
+    return e24(Resistance(t_attack / c_env))
+
+
+def feedback_resistor(r_att, t_attack, t_release):
+    """tau_release = (R_ATT + R_FB) * C_ENV, so R_FB = R_ATT * (tau_release / tau_attack - 1)."""
+    return e24(Resistance(r_att * (t_release / t_attack - 1)))
+
+
+def coupling_capacitor(r_tap, f_corner):
+    """Both taps drive the virtual ground in parallel: f_c = 1 / (2 pi (R_tap / 2) C_AC)."""
+    return e12(Capacitance(1 / (2 * PI * (r_tap / 2) * f_corner)))
+
+
+def threshold_resistor(r_leg, v_offset, v_bat):
+    """Ladder VBAT-R_leg-THRESH-R_mid-VMID-R_leg-GND: v_offset / v_bat = R_mid / (2 R_leg + R_mid)."""
+    x = v_offset.value / v_bat.value
+    return e24(Resistance(2 * r_leg * x / (1 - x)))
+
+
+def hysteresis_resistor(r_in, v_hys, v_bat):
+    """Non-inverting comparator, rail-to-rail output: the ENV-referred trip points differ by v_bat * R_in / R_fb."""
+    return e12(Resistance(r_in * v_bat / v_hys))
+
+
+def filter_resistor(c_filter, f_corner):
+    """Single-pole RC: f_c = 1 / (2 pi R C)."""
+    return e24(Resistance(1 / (2 * PI * c_filter * f_corner)))
+
+
+R_ATT = attack_resistor(attack_time, envelope_capacitance)
+R_FB = feedback_resistor(R_ATT, attack_time, release_time)
+C_AC = coupling_capacitor(tap_resistance, coupling_corner)
+R_MID = threshold_resistor(BIAS_LEG, music_threshold, VBAT_NOMINAL)
+R_HYS_FB = hysteresis_resistor(HYS_INPUT, hysteresis, VBAT_NOMINAL)
+R_AA = filter_resistor(ADC_FILTER_CAP, adc_filter_corner)
+
+envelope_dnp = sense_mode == SenseMode("DIRECT_ADC")
+direct_dnp = sense_mode == SenseMode("ENVELOPE")
+
+AUDIO_TAP_SUM = Net()
+RECT_SUMJ = Net()
+RECT_DRV = Net()
+RECT_OUT = Net()
+ENV = Net()
+MUSIC_THRESH = Net()
+CMP_POS = Net()
+AUDIO_RAW_SUM = Net()
+
+# Bias ladder shared by both options: AUDIO_VMID and MUSIC_THRESH come from one
+# string, so the threshold offset depends only on the R_MID / R_total ratio.
+Resistor(name="R_BIAS_TOP", value=BIAS_LEG, package="0603", P1=VBAT, P2=MUSIC_THRESH)
+Resistor(name="R_BIAS_MID", value=R_MID, package="0603", P1=MUSIC_THRESH, P2=AUDIO_VMID)
+Resistor(name="R_BIAS_BOT", value=BIAS_LEG, package="0603", P1=AUDIO_VMID, P2=GND)
+Capacitor(name="C_VMID", value="1uF", package="0603", dielectric="X7R", P1=AUDIO_VMID, P2=GND)
+Capacitor(name="C_THRESH", value="1uF", package="0603", dielectric="X7R", P1=MUSIC_THRESH, P2=GND)
+
+# Option A: tap and rectifier (U_AFE channel A).
+Resistor(name="R_TAP_L", value=tap_resistance, package="0603", P1=AUDIO_L_IN, P2=AUDIO_TAP_SUM, dnp=envelope_dnp)
+Resistor(name="R_TAP_R", value=tap_resistance, package="0603", P1=AUDIO_R_IN, P2=AUDIO_TAP_SUM, dnp=envelope_dnp)
+Capacitor(
+    name="C_TAP_AC", value=C_AC, package="0603", dielectric="X7R", P1=AUDIO_TAP_SUM, P2=RECT_SUMJ, dnp=envelope_dnp
+)
+
+OpAmp(
+    name="U_AFE",
+    VDD=VBAT,
+    VSS=GND,
+    A=Opamp(name="RECT", IN_P=AUDIO_VMID, IN_N=RECT_SUMJ, OUT=RECT_DRV),
+    B=Opamp(name="CMP", IN_P=CMP_POS, IN_N=MUSIC_THRESH, OUT=MUSIC_PRESENT),
+    dnp=envelope_dnp,
+)
+Capacitor(name="C_AFE_VDD", value="100nF", package="0603", dielectric="X7R", P1=VBAT, P2=GND, dnp=envelope_dnp)
+
+# Schottky pair (BAT54WS class, 30 V / 200 mA): D_CLAMP keeps the op amp out of
+# saturation on the idle half-cycle; D_OUT passes the rectified half-cycle to RECT_OUT.
+Rectifier(
+    name="D_CLAMP",
+    package="SOD-323",
+    technology="Schottky",
+    reverse_voltage="30V",
+    forward_current="200mA",
+    A=RECT_SUMJ,
+    K=RECT_DRV,
+    dnp=envelope_dnp,
+)
+Rectifier(
+    name="D_OUT",
+    package="SOD-323",
+    technology="Schottky",
+    reverse_voltage="30V",
+    forward_current="200mA",
+    A=RECT_DRV,
+    K=RECT_OUT,
+    dnp=envelope_dnp,
+)
+Resistor(name="R_FB", value=R_FB, package="0603", P1=RECT_OUT, P2=RECT_SUMJ, dnp=envelope_dnp)
+
+# Envelope: attack through R_ATT, release through R_ATT + R_FB into the virtual ground.
+Resistor(name="R_ATT", value=R_ATT, package="0603", P1=RECT_OUT, P2=ENV, dnp=envelope_dnp)
+Capacitor(
+    name="C_ENV",
+    value=envelope_capacitance,
+    package="0603",
+    voltage="25V",
+    dielectric="X7R",
+    P1=ENV,
+    P2=GND,
+    dnp=envelope_dnp,
+)
+
+# Anti-alias RC in front of the ADC pin; C_AA also supplies the ADC sampling charge.
+Resistor(name="R_AA", value=R_AA, package="0603", P1=ENV, P2=ENV_OUT, dnp=envelope_dnp)
+Capacitor(name="C_AA", value=ADC_FILTER_CAP, package="0603", dielectric="X7R", P1=ENV_OUT, P2=GND, dnp=envelope_dnp)
+
+# Comparator (U_AFE channel B) senses ENV directly: R_AA would add its own DC
+# shift to the hysteresis network. R_HYS_FB is ~22 MOhm so the network loads ENV
+# by < 5 mV at rest.
+Resistor(name="R_HYS_IN", value=HYS_INPUT, package="0603", P1=ENV, P2=CMP_POS, dnp=envelope_dnp)
+Resistor(name="R_HYS_FB", value=R_HYS_FB, package="0603", P1=MUSIC_PRESENT, P2=CMP_POS, dnp=envelope_dnp)
+
+# Option B: direct ADC sampling (DNP by default).
+Resistor(name="R_RAW_TAP_L", value=tap_resistance, package="0603", P1=AUDIO_L_IN, P2=AUDIO_RAW_SUM, dnp=direct_dnp)
+Resistor(name="R_RAW_TAP_R", value=tap_resistance, package="0603", P1=AUDIO_R_IN, P2=AUDIO_RAW_SUM, dnp=direct_dnp)
+Capacitor(
+    name="C_RAW_AC", value="100nF", package="0603", dielectric="X7R", P1=AUDIO_RAW_SUM, P2=AUDIO_RAW, dnp=direct_dnp
+)
+Resistor(name="R_RAW_BIAS", value="100kOhm", package="0603", P1=AUDIO_RAW, P2=AUDIO_VMID, dnp=direct_dnp)
+Capacitor(name="C_RAW_AA", value="1.5nF", package="0603", dielectric="C0G", P1=AUDIO_RAW, P2=GND, dnp=direct_dnp)
+
+TestPoint(name="TP_ENV_OUT", variant="Pad_D1.5mm", P1=ENV_OUT, dnp=not test_pads)
+TestPoint(name="TP_MUSIC_PRESENT", variant="Pad_D1.5mm", P1=MUSIC_PRESENT, dnp=not test_pads)
+TestPoint(name="TP_AUDIO_VMID", variant="Pad_D1.5mm", P1=AUDIO_VMID, dnp=not test_pads)
+TestPoint(name="TP_MUSIC_THRESH", variant="Pad_D1.5mm", P1=MUSIC_THRESH, dnp=not test_pads)

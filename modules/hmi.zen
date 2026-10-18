@@ -1,0 +1,26 @@
+"""HMI: three front tactile buttons (Select, Dance A, Dance B) and the pinhole reset switch.
+
+Buttons short their line to GND and rely on the MCU's internal pull-ups (no
+external parts, no static current). SW_RESET is assembled on the back so it
+sits under the shell's reset pinhole; C_NRST lives at the MCU pin.
+"""
+
+Switch = Module("code.diode.computer/lena/registry/components/Littelfuse/KMR2x1NGLFS/KMR2x1NGLFS.zen")
+
+BTN_SELECT = io(Net)
+BTN_DANCE_A = io(Net)
+BTN_DANCE_B = io(Net)
+NRST = io(Net)
+GND = io(Ground)
+
+button_force = config(
+    str,
+    default="2N",
+    allowed=["1.2N", "2N", "3N", "4N"],
+    help="KMR2 actuation force; 2 N resists presses inside a pocket or bag.",
+)
+
+Switch(name="SW_SELECT", actuation_force=button_force, P1=BTN_SELECT, P2=GND)
+Switch(name="SW_DANCE_A", actuation_force=button_force, P1=BTN_DANCE_A, P2=GND)
+Switch(name="SW_DANCE_B", actuation_force=button_force, P1=BTN_DANCE_B, P2=GND)
+Switch(name="SW_RESET", actuation_force=button_force, P1=NRST, P2=GND)

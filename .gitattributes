@@ -1,0 +1,25 @@
+# KiCad and Zener sources are text: normalise line endings so diffs stay clean.
+*.kicad_pcb   text eol=lf
+*.kicad_sch   text eol=lf
+*.kicad_pro   text eol=lf
+*.kicad_sym   text eol=lf
+*.kicad_mod   text eol=lf
+*.kicad_dru   text eol=lf
+*.kicad_wks   text eol=lf
+fp-lib-table  text eol=lf
+sym-lib-table text eol=lf
+*.zen         text eol=lf
+*.toml        text eol=lf
+*.md          text eol=lf
+*.csv         text eol=lf
+*.py          text eol=lf
+
+# The board file embeds 3D models; don't let git try a textual merge on it.
+*.kicad_pcb   merge=binary
+*.kicad_sch   merge=binary
+
+# Binary outputs
+*.pdf  binary
+*.png  binary
+*.step binary
+*.wrl  binary

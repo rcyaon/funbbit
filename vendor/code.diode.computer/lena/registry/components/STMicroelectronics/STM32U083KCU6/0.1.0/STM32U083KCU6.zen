@@ -1,0 +1,102 @@
+"""STMicroelectronics STM32U083KCU6 - Arm Cortex-M0+ ultra-low-power MCU, UFQFPN32 (primitive).
+
+Exact device: STM32U083KC, 256 KB flash, 40 KB SRAM, 56 MHz, UFQFPN32 5 x 5 mm,
+0.5 mm pitch, 3.6 x 3.6 mm exposed pad (ST package code A0B8), -40 to +85 C
+(suffix 6). Evidence: ST DS14463 Rev 2 - pinout Fig. 3 (p27), pin definitions
+Table 12 UFQFPN32 column, operating conditions Table 22 (p44), power scheme
+Fig. 13, package Fig. 34/35 + Table 89 (pp111-113).
+
+Fig. 3 labels pin 17 "VDDUSB"; Table 12 gives VDD for UFQFPN32 pin 17, which
+the symbol uses (no separate VDDUSB on this package). VBAT is not bonded out.
+
+Primitive package only: no decoupling, crystal, reset, or boot strap circuitry.
+Integrator-owned support (DS14463 Fig. 13):
+- VDD (pins 1/17): 100 nF per VDD pin plus one 4.7 uF ceramic. 1.71-3.6 V.
+  USB on PA11/PA12 needs VDD >= 3.0 V because VDDUSB is tied to VDD here.
+- VDDA/VREF+ (pin 5): 100 nF + 1 uF (plus 10 nF + 1 uF VREF filtering per
+  Fig. 13). VDDA min is 1.62 V with ADC/COMP, 1.8 V with OPAMP (Table 22).
+  There is no separate VSSA pin on this package; VSS/EP is the analog return.
+- EP (pad 33): exposed die pad; ST recommends soldering it to PCB ground
+  (Fig. 34 note 3). Exposed here via GND.
+- PF2-NRST (pin 4): reset I/O with internal pull-up; 100 nF to VSS is typical.
+- PF3-BOOT0 (pin 31): BOOT0 at reset, otherwise GPIO PF3.
+- PA13 / PA14 are SWDIO / SWCLK after reset.
+- PA11/PA12 can be remapped onto PA9/PA10 pads (Fig. 3 brackets).
+
+Sourcing alternative STM32U073KCU6 shares the UFQFPN32 pinout and package; it
+lacks the U083 AES hardware accelerator (firmware-visible difference only).
+"""
+
+VDD = io(Power(voltage="1.71V to 3.6V"), help="Digital supply, pins 1 and 17.")
+VDDA = io(Power(voltage="1.71V to 3.6V"), help="Analog supply / VREF+, pin 5.")
+GND = io(Ground, help="VSS pins 16/32 and exposed pad 33.")
+
+NRST = io(Net, optional=True, help="PF2-NRST, active-low reset (internal pull-up).")
+BOOT0 = io(Net, optional=True, help="PF3-BOOT0, sampled at reset; GPIO PF3 afterwards.")
+
+PA0 = io(Net, optional=True)
+PA1 = io(Net, optional=True)
+PA2 = io(Net, optional=True)
+PA3 = io(Net, optional=True)
+PA4 = io(Net, optional=True)
+PA5 = io(Net, optional=True)
+PA6 = io(Net, optional=True)
+PA7 = io(Net, optional=True)
+PA8 = io(Net, optional=True)
+PA9 = io(Net, optional=True)
+PA10 = io(Net, optional=True)
+PA11 = io(Net, optional=True, help="USB_DM capable.")
+PA12 = io(Net, optional=True, help="USB_DP capable.")
+PA13 = io(Net, optional=True, help="SWDIO after reset.")
+PA14 = io(Net, optional=True, help="SWCLK after reset.")
+PA15 = io(Net, optional=True)
+PB0 = io(Net, optional=True)
+PB1 = io(Net, optional=True)
+PB3 = io(Net, optional=True)
+PB4 = io(Net, optional=True)
+PB5 = io(Net, optional=True)
+PB6 = io(Net, optional=True)
+PB7 = io(Net, optional=True)
+PC14 = io(Net, optional=True, help="PC14-OSC32_IN, LSE input or GPIO.")
+PC15 = io(Net, optional=True, help="PC15-OSC32_OUT, LSE output or GPIO.")
+
+Component(
+    name="STM32U083KCU6",
+    symbol=Symbol(library="STM32U083KCU6.kicad_sym"),
+    properties={
+        "alternatives": [Part(mpn="STM32U073KCU6", manufacturer="STMicroelectronics")],
+    },
+    pins={
+        "VDD": VDD,
+        "VDDA/VREF+": VDDA,
+        "VSS": GND,
+        "EP": GND,
+        "PF2-NRST": NRST,
+        "PF3-BOOT0": BOOT0,
+        "PC14-OSC32_IN": PC14,
+        "PC15-OSC32_OUT": PC15,
+        "PA0": PA0,
+        "PA1": PA1,
+        "PA2": PA2,
+        "PA3": PA3,
+        "PA4": PA4,
+        "PA5": PA5,
+        "PA6": PA6,
+        "PA7": PA7,
+        "PA8": PA8,
+        "PA9": PA9,
+        "PA10": PA10,
+        "PA11": PA11,
+        "PA12": PA12,
+        "PA13": PA13,
+        "PA14": PA14,
+        "PA15": PA15,
+        "PB0": PB0,
+        "PB1": PB1,
+        "PB3": PB3,
+        "PB4": PB4,
+        "PB5": PB5,
+        "PB6": PB6,
+        "PB7": PB7,
+    },
+)

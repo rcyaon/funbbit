@@ -1,0 +1,35 @@
+"""Same Sky (formerly CUI Devices) SJ-3523-SMT-TR - 3.5 mm stereo (TRS) audio jack, SMT.
+
+Primitive package. Right angle, 3 conductors, no internal switches, 5.0 mm
+high, 6.0 x 14.5 mm body plus a 2.5 mm long, 5.0 mm diameter nose. Evidence:
+Same Sky SJ-352X-SMT datasheet rev 1.07 (2025-04-15) - part number key and
+specifications (p1), mechanical drawing, recommended PCB layout (top view),
+and schematic/pin table (p2).
+
+Pins (p2 table, SJ-3523-SMT column): 1 = sleeve, 2 = tip, 3 = ring,
+4 = NP (not populated). The tip-switch terminal 4 exists only on SJ-3524, so
+this package has no switch IO and the footprint omits the terminal-4 land.
+
+Footprint: three SMT lands from the recommended layout (sleeve and ring
+2.8 x 2.2 mm, tip 2.8 x 2.8 mm) plus the two 1.70 mm non-plated holes for the
+1.5 +/- 0.05 mm, 0.8 mm long locating bosses. The plug enters from the +Y
+board edge side; place the nose (2.5 mm past the body) at or over the board
+edge.
+
+Limits: 12 V DC, 1 A, 50 mOhm contact resistance, -25 to +85 C, 5,000 cycles,
+reflow peak 260 C.
+"""
+
+TIP = io(Net)
+RING = io(Net)
+SLEEVE = io(Net)
+
+Component(
+    name="SJ-3523-SMT",
+    symbol=Symbol(library="SJ-3523-SMT.kicad_sym"),
+    pins={
+        "TIP": TIP,
+        "RING": RING,
+        "SLEEVE": SLEEVE,
+    },
+)

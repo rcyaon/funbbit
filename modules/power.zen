@@ -1,0 +1,48 @@
+"""Power: one CR2032 coin cell, reverse-polarity P-FET, bulk capacitance. No regulator.
+
+Every load runs straight from VBAT. An LDO would only add dropout and
+quiescent current (the LCD already needs >= 2.7 V), and no load needs more
+than the cell voltage, so there is no boost either.
+
+The cell holder (Keystone 3034) is assembled on the back side. Its negative
+contact is a bare ENIG pad in the footprint.
+"""
+
+BatteryHolder = Module("code.diode.computer/lena/registry/components/Keystone/3034/3034.zen")
+Pfet = Module("code.diode.computer/lena/registry/components/Diodes_Incorporated/DMP2045U-7/DMP2045U-7.zen")
+Capacitor = Module("@stdlib/generics/Capacitor.zen")
+TestPoint = Module("@stdlib/generics/TestPoint.zen")
+
+VBAT = io(Power(voltage="2.0V to 3.3V"), help="Protected battery rail after the reverse-polarity FET.")
+GND = io(Ground)
+
+VBAT_CELL = Power(voltage="2.0V to 3.3V")
+
+BatteryHolder(name="BT_CELL", POS=VBAT_CELL, NEG=GND)
+
+# High-side P-FET, drain at the cell and source at the load, gate at GND.
+# Correct cell: the body diode conducts first, then VGS = -VBAT enhances the
+# channel (DMP2045U: VGS(th) -0.3 to -1.0 V, RDS(on) <= 90 mOhm at -1.8 V), so
+# the drop is < 1 mV at the board's < 5 mA peaks. Reversed cell: the body diode
+# is reverse-biased and VGS = 0 V, so nothing on the board sees negative voltage.
+Pfet(name="Q_REVERSE", D=VBAT_CELL, S=VBAT, G=GND)
+
+# >= 100 uF bulk so MCU/LCD pulses do not droop a CR2032 (10-100 Ohm internal
+# resistance over life). 3 x 47 uF X7R 10 V 1210 = 141 uF nominal; X7R DC-bias
+# loss at 3 V leaves roughly 100-115 uF. C_BULK4 is a spare footprint, DNP.
+for i in range(4):
+    Capacitor(
+        name="C_BULK" + str(i + 1),
+        value="47uF",
+        package="1210",
+        voltage="10V",
+        dielectric="X7R",
+        mpn="GRM32ER71A476KE15L",
+        manufacturer="Murata Electronics",
+        P1=VBAT,
+        P2=GND,
+        dnp=(i == 3),
+    )
+
+TestPoint(name="TP_VBAT", variant="Pad_D1.5mm", P1=VBAT)
+TestPoint(name="TP_GND", variant="Pad_D1.5mm", P1=GND)

@@ -1,0 +1,47 @@
+"""Debug: 10-pin 1.27 mm Cortex debug header (SWD) plus test pads for SWD, reset, UART logging and spares.
+
+Cortex 10-pin pinout: 1 VTref, 2 SWDIO, 3 GND, 4 SWCLK, 5 GND, 6 SWO (the
+Cortex-M0+ has none), 7 key, 8 NC, 9 GNDDetect, 10 nRESET. VTref only senses
+VBAT; the probe does not power the board. With the cell removed, feed 3.0 V
+into TP_VBAT (never above 3.3 V: LCD limit).
+"""
+
+DebugHeader = Module(
+    "code.diode.computer/lena/registry/components/Samtec/FTSH-105-01-L-DV-K-A-P-TR/FTSH-105-01-L-DV-K-A-P-TR.zen"
+)
+TestPoint = Module("@stdlib/generics/TestPoint.zen")
+
+VBAT = io(Power(voltage="2.0V to 3.3V"))
+GND = io(Ground)
+SWDIO = io(Net)
+SWCLK = io(Net)
+NRST = io(Net)
+UART_TX = io(Net)
+UART_RX = io(Net)
+BOOT0 = io(Net)
+SPARE_1 = io(Net)
+SPARE_2 = io(Net)
+
+DebugHeader(
+    name="J_SWD",
+    P1=VBAT,
+    P2=SWDIO,
+    P3=GND,
+    P4=SWCLK,
+    P5=GND,
+    P6=NotConnected(),
+    P7=NotConnected(),
+    P8=NotConnected(),
+    P9=GND,
+    P10=NRST,
+)
+
+TestPoint(name="TP_SWDIO", variant="Pad_D1.5mm", P1=SWDIO)
+TestPoint(name="TP_SWCLK", variant="Pad_D1.5mm", P1=SWCLK)
+TestPoint(name="TP_NRST", variant="Pad_D1.5mm", P1=NRST)
+TestPoint(name="TP_UART_TX", variant="Pad_D1.5mm", P1=UART_TX)
+TestPoint(name="TP_UART_RX", variant="Pad_D1.5mm", P1=UART_RX)
+TestPoint(name="TP_DEBUG_GND", variant="Pad_D1.5mm", P1=GND)
+TestPoint(name="TP_BOOT0", variant="Pad_D1.5mm", P1=BOOT0)
+TestPoint(name="TP_SPARE_1", variant="Pad_D1.5mm", P1=SPARE_1)
+TestPoint(name="TP_SPARE_2", variant="Pad_D1.5mm", P1=SPARE_2)

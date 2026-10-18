@@ -1,0 +1,149 @@
+"""funbit: modern Sony PET-F7 "Funbbit" recreation.
+
+Inline headphone accessory: a passive stereo passthrough with a non-loading
+tap feeds an envelope detector. An STM32U0 reads the envelope and animates a
+virtual pet on a Sharp memory-in-pixel LCD, all from one CR2032 cell.
+"""
+
+PowerSupply = Module("./modules/power.zen")
+AudioPassthrough = Module("./modules/audio_passthrough.zen")
+AudioSense = Module("./modules/audio_sense.zen")
+Mcu = Module("./modules/mcu.zen")
+Display = Module("./modules/display.zen")
+Hmi = Module("./modules/hmi.zen")
+Debug = Module("./modules/debug.zen")
+MountingHole = Module("@stdlib/generics/MountingHole.zen")
+Fiducial = Module("@stdlib/generics/Fiducial.zen")
+
+VBAT = Power(voltage="2.0V to 3.3V")
+GND = Ground()
+
+AUDIO_L_IN = Net()
+AUDIO_R_IN = Net()
+AUDIO_L_OUT = Net()
+AUDIO_R_OUT = Net()
+
+ENV_OUT = Net()
+MUSIC_PRESENT = Net()
+AUDIO_VMID = Net()
+AUDIO_RAW = Net()
+
+LCD_SCLK = Net()
+LCD_MOSI = Net()
+LCD_CS = Net()
+LCD_EXTCOMIN = Net()
+LCD_DISP = Net()
+
+BTN_SELECT = Net()
+BTN_DANCE_A = Net()
+BTN_DANCE_B = Net()
+
+SWDIO = Net()
+SWCLK = Net()
+NRST = Net()
+BOOT0 = Net()
+UART_TX = Net()
+UART_RX = Net()
+SPARE_1 = Net()
+SPARE_2 = Net()
+
+PowerSupply(name="POWER", VBAT=VBAT, GND=GND)
+
+AudioPassthrough(
+    name="AUDIO_PASSTHROUGH",
+    AUDIO_L_IN=AUDIO_L_IN,
+    AUDIO_R_IN=AUDIO_R_IN,
+    AUDIO_L_OUT=AUDIO_L_OUT,
+    AUDIO_R_OUT=AUDIO_R_OUT,
+    GND=GND,
+)
+
+AudioSense(
+    name="AUDIO_SENSE",
+    VBAT=VBAT,
+    GND=GND,
+    AUDIO_L_IN=AUDIO_L_IN,
+    AUDIO_R_IN=AUDIO_R_IN,
+    ENV_OUT=ENV_OUT,
+    MUSIC_PRESENT=MUSIC_PRESENT,
+    AUDIO_VMID=AUDIO_VMID,
+    AUDIO_RAW=AUDIO_RAW,
+)
+
+Mcu(
+    name="MCU",
+    VBAT=VBAT,
+    GND=GND,
+    LCD_SCLK=LCD_SCLK,
+    LCD_MOSI=LCD_MOSI,
+    LCD_CS=LCD_CS,
+    LCD_DISP=LCD_DISP,
+    LCD_EXTCOMIN=LCD_EXTCOMIN,
+    BTN_SELECT=BTN_SELECT,
+    BTN_DANCE_A=BTN_DANCE_A,
+    BTN_DANCE_B=BTN_DANCE_B,
+    MUSIC_PRESENT=MUSIC_PRESENT,
+    ENV_OUT=ENV_OUT,
+    AUDIO_VMID=AUDIO_VMID,
+    AUDIO_RAW=AUDIO_RAW,
+    UART_TX=UART_TX,
+    UART_RX=UART_RX,
+    SWDIO=SWDIO,
+    SWCLK=SWCLK,
+    NRST=NRST,
+    BOOT0=BOOT0,
+    SPARE_1=SPARE_1,
+    SPARE_2=SPARE_2,
+)
+
+Display(
+    name="DISPLAY",
+    VBAT=VBAT,
+    GND=GND,
+    LCD_SCLK=LCD_SCLK,
+    LCD_MOSI=LCD_MOSI,
+    LCD_CS=LCD_CS,
+    LCD_EXTCOMIN=LCD_EXTCOMIN,
+    LCD_DISP=LCD_DISP,
+)
+
+Hmi(
+    name="HMI",
+    BTN_SELECT=BTN_SELECT,
+    BTN_DANCE_A=BTN_DANCE_A,
+    BTN_DANCE_B=BTN_DANCE_B,
+    NRST=NRST,
+    GND=GND,
+)
+
+Debug(
+    name="DEBUG",
+    VBAT=VBAT,
+    GND=GND,
+    SWDIO=SWDIO,
+    SWCLK=SWCLK,
+    NRST=NRST,
+    UART_TX=UART_TX,
+    UART_RX=UART_RX,
+    BOOT0=BOOT0,
+    SPARE_1=SPARE_1,
+    SPARE_2=SPARE_2,
+)
+
+# Two M2 screws into the shell bosses (non-plated, no copper).
+MountingHole(name="H_MOUNT_1", diameter="M2", plating="Mechanical")
+MountingHole(name="H_MOUNT_2", diameter="M2", plating="Mechanical")
+
+# Global fiducials for the 0.5 mm pitch QFN and FPC connector (top) and the back-side parts.
+Fiducial(name="FID_TOP_1")
+Fiducial(name="FID_TOP_2")
+Fiducial(name="FID_TOP_3")
+Fiducial(name="FID_BOT_1")
+Fiducial(name="FID_BOT_2")
+
+Board(
+    name="funbit",
+    layout_path="eda",
+    layers=2,
+    schematic=True,
+)
