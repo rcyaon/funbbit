@@ -40,3 +40,6 @@ testbench/output/
 *.cir
 __pycache__/
 *.pyc
+
+# --- KiCad local history ---
+**/.history/

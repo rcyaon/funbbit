@@ -68,11 +68,16 @@ writes the firmware; this board must hand off cleanly to that work.
 | LSE | ABS07 32.768 kHz, 7 pF, 2 x 8.2 pF | The house 12.5 pF / 90 kOhm crystal has gm_crit 2.8 uA/V, above the STM32U0's 2.7 uA/V high-drive limit. |
 | Buttons | C&K KMR221NG LFS (2 N) | In the registry. 2 N resists pocket presses. |
 | Debug | Samtec FTSH-105-01-L-DV-K-A-P-TR | Standard Cortex 10-pin header; it fits. |
+| Back-side placement | Reset switch on the back right edge beside the SWD header; CR2032 slides in from the top (strap) end; bulk caps sit behind the retainer's closed back | Puts the switch on the same right-edge NRST run as the 100 nF cap, the test pad and the header pin, instead of a second branch of about 25 mm across the board's routing corridors. Keystone drawing 3034 rev F puts the open face 7.77 mm from the tab line, which faces the clear top region here. |
+| Fiducials | 3 on the front (two top corners, one bottom left), 2 on the back (diagonal corners) | Front set is non-collinear and spans the fine-pitch QFN and the 0.3 mm FPC connector. |
+| Routing | Signals on the top layer; the back is a continuous GND pour with short hops only. 0.2 mm signals, 0.3 mm VBAT and cell feed, 0.45/0.2 mm tented vias, 3 GND vias at each jack sleeve | Keeps one unbroken return plane under the analog block, the crystal and the headphone sleeve-to-sleeve path. Under the CR2032 there is only the GND pour, the negative contact and the cell's own feed vias at the retainer tabs; no other signals. |
 
 ## Open Questions
 
 - Shell mechanics: button plunger positions, strap-hole size, and the exact LCD
   window. The layout assumes plungers directly over the switches and a
-  strap post at top centre.
+  strap post at top centre. The back shell needs a cell door at the top end
+  (the cell slides toward the bottom of the board) and a reset pinhole at the
+  back right edge, behind the front test-pad grid.
 - Whether to fit the DNP input bleed resistors (R_BLEED_L/R) depends on how the
   player is connected in practice.

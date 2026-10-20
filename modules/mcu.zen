@@ -1,6 +1,6 @@
 """MCU: STM32U083KCU6 (Cortex-M0+, 256 KB flash, 40 KB SRAM, UFQFPN32) and its support parts.
 
-Runs directly from VBAT (1.71-3.6 V). Stop 2 is 750 nA typ at 3.0 V (DS14463
+Runs directly from VBAT (1.71-3.6 V). Stop 2 is 750 nA typ at 3.0 V (DS14548
 Table 40). LPTIM1-3 keep running in Stop 2, so LPTIM2 on PA8 can generate the
 LCD EXTCOMIN clock without waking the CPU. Brown-out reset BOR1 falls at
 2.00 V typ (1.96-2.04 V, Table 24).
